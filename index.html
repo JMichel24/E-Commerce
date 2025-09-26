@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TiendaModerna Pro</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/icon-192.png">
+    <meta name="theme-color" content="#667eea">
+
+    <!-- FONTS -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- FIREBASE -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+    <!-- STRIPE -->
+    <script src="https://js.stripe.com/v3/"></script>
+</head>
+<body>
+    <!-- USER MODAL (LOGIN/SIGNUP) -->
+    <div class="modal" id="user-modal">
+        <div class="modal-content" style="max-width: 400px;">
+            <span class="close" id="close-user">&times;</span>
+            <h2 id="user-modal-title">Iniciar Sesión</h2>
+            <div id="auth-forms">
+                <div id="login-form">
+                    <input type="email" id="login-email" class="form-control" placeholder="Email" required>
+                    <input type="password" id="login-password" class="form-control" placeholder="Contraseña" required>
+                    <button id="login-btn" class="btn">Entrar</button>
+                    <button id="toggle-signup" class="btn" style="background:#667eea; margin-top:10px;">Crear Cuenta</button>
+                    <button id="google-login" class="btn" style="background:#db4437; margin-top:10px;">Entrar con Google</button>
+                </div>
+                <div id="signup-form" style="display:none;">
+                    <input type="text" id="signup-name" class="form-control" placeholder="Nombre Completo" required>
+                    <input type="email" id="signup-email" class="form-control" placeholder="Email" required>
+                    <input type="password" id="signup-password" class="form-control" placeholder="Contraseña" required>
+                    <button id="signup-btn" class="btn">Registrarse</button>
+                    <button id="toggle-login" class="btn" style="background:#667eea; margin-top:10px;">Ya tengo cuenta</button>
+                </div>
+            </div>
+            <div id="user-profile" style="display:none; text-align:center;">
+                <p>¡Hola, <span id="user-name">Usuario</span>!</p>
+                <button id="logout-btn" class="btn" style="background:#ff4d4d;">Cerrar Sesión</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HEADER -->
+    <header class="header">
+        <div class="container header-content">
+            <div class="logo">
+                <h1>Tienda<span>Moderna</span></h1>
+            </div>
+            <nav class="nav">
+                <ul class="nav-list">
+                    <li><a href="#inicio">Inicio</a></li>
+                    <li><a href="#productos">Productos</a></li>
+                    <li><a href="#ofertas">Ofertas</a></li>
+                    <li><a href="#contacto">Contacto</a></li>
+                </ul>
+                <div class="menu-toggle" id="mobile-menu">☰</div>
+            </nav>
+            <div class="header-actions">
+                <button id="user-btn" class="btn" style="background:transparent; border:1px solid white; color:white; margin-right:10px;">👤 Mi Cuenta</button>
+                <div class="cart-icon" id="cart-icon">🛒 <span id="cart-count">0</span></div>
+            </div>
+        </div>
+    </header>
+
+    <!-- HERO -->
+    <section class="hero" id="inicio">
+        <div class="container hero-content">
+            <h2>Descubre Nuevos Estilos</h2>
+            <p>Los mejores productos con envío gratis en pedidos superiores a $50</p>
+            <a href="#productos" class="btn">Ver Productos</a>
+        </div>
+    </section>
+
+    <!-- BARRA DE BÚSQUEDA Y FILTROS -->
+    <section class="filters-section" id="productos">
+        <div class="container">
+            <input type="text" id="search-input" class="form-control" placeholder="Buscar productos...">
+            <div class="filter-controls">
+                <select id="category-filter" class="form-control">
+                    <option value="">Todas las categorías</option>
+                    <option value="ropa">Ropa</option>
+                    <option value="tecnologia">Tecnología</option>
+                    <option value="accesorios">Accesorios</option>
+                </select>
+                <select id="price-filter" class="form-control">
+                    <option value="">Precio</option>
+                    <option value="asc">Precio: Menor a Mayor</option>
+                    <option value="desc">Precio: Mayor a Menor</option>
+                </select>
+            </div>
+        </div>
+    </section>
+
+    <!-- PRODUCTOS -->
+    <section class="products-section">
+        <div class="container">
+            <h2 class="section-title">Nuestros Productos</h2>
+            <div class="products-grid" id="products-container"></div>
+        </div>
+    </section>
+
+    <!-- OFERTAS -->
+    <section class="offers-section" id="ofertas">
+        <div class="container">
+            <h2 class="section-title">🔥 Ofertas Especiales</h2>
+            <div class="products-grid" id="offers-container"></div>
+        </div>
+    </section>
+
+    <!-- CARRITO MODAL -->
+    <div class="modal" id="cart-modal">
+        <div class="modal-content" style="max-width: 900px;">
+            <span class="close" id="close-cart">&times;</span>
+            <h2 class="cart-header">Tu Carrito de Compras</h2>
+            <div id="cart-items" class="cart-items-container">
+                <p id="empty-cart">Tu carrito está vacío.</p>
+            </div>
+            <div class="cart-total">Total: $<span id="total-price">0.00</span></div>
+
+            <div class="checkout-form">
+                <h3>Datos de Envío</h3>
+                <div class="form-group">
+                    <label for="name">Nombre Completo</label>
+                    <input type="text" id="name" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">Correo Electrónico</label>
+                    <input type="email" id="email" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="address">Dirección</label>
+                    <input type="text" id="address" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="phone">Teléfono</label>
+                    <input type="tel" id="phone" class="form-control" required>
+                </div>
+
+                <h3>Método de Pago</h3>
+                <div class="payment-methods">
+                    <label class="payment-option" for="payment-stripe">
+                        <input type="radio" name="payment" id="payment-stripe" value="stripe" required>
+                        <div class="payment-icon">💳</div>
+                        <div>Stripe (Tarjeta)</div>
+                    </label>
+                    <label class="payment-option" for="payment-paypal">
+                        <input type="radio" name="payment" id="payment-paypal" value="paypal">
+                        <div class="payment-icon">🅿️</div>
+                        <div>PayPal</div>
+                    </label>
+                    <label class="payment-option" for="payment-mercado">
+                        <input type="radio" name="payment" id="payment-mercado" value="mercadopago">
+                        <div class="payment-icon">🇲🇽</div>
+                        <div>MercadoPago</div>
+                    </label>
+                </div>
+
+                <button id="checkout-btn" class="btn" disabled>Finalizar Compra</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="footer">
+        <div class="container footer-content">
+            <div class="footer-col">
+                <h3>TiendaModerna Pro</h3>
+                <p>Plataforma e-commerce profesional con pagos reales y gestión de usuarios.</p>
+            </div>
+            <div class="footer-col">
+                <h4>Soporte</h4>
+                <ul>
+                    <li><a href="#">Ayuda</a></li>
+                    <li><a href="#">Términos</a></li>
+                    <li><a href="#">Privacidad</a></li>
+                </ul>
+            </div>
+            <div class="footer-col">
+                <h4>Contacto</h4>
+                <p>📧 soporte@tiendamoderna.com</p>
+                <p>📞 +123 456 7890</p>
+            </div>
+            <div class="footer-col">
+                <h4>Instalar App</h4>
+                <p>Esta aplicación es una PWA. ¡Puedes instalarla en tu dispositivo!</p>
+                <button id="install-btn" class="btn" style="margin-top:10px; font-size:0.9rem;">+ Instalar App</button>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>&copy; 2025 TiendaModerna Pro. Todos los derechos reservados.</p>
+        </div>
+    </footer>
+
+    <script src="script.js"></script>
+</body>
+</html>
