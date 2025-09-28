@@ -1,3 +1,7 @@
+// ==================================================
+// TIENDAMODERNA PRO - SCRIPT.JS COMPLETO (PASO 1 + 2 + 3)
+// ==================================================
+
 // Datos de productos
 const products = [
     {
@@ -66,7 +70,135 @@ const offers = [
 // Carrito
 let cart = JSON.parse(localStorage.getItem('cart')) || [];
 
-// Render Products
+// ==================================================
+// FIREBASE AUTH + FIRESTORE + STRIPE — PASO 1, 2 Y 3
+// ==================================================
+
+const firebaseConfig = {
+    apiKey: "AIzaSyDXgBKiABWvjnQMQa-YfEgdpz37YkYrt0Q",
+    authDomain: "tiendamoderna-pro.firebaseapp.com",
+    projectId: "tiendamoderna-pro",
+    storageBucket: "tiendamoderna-pro.firebasestorage.app",
+    messagingSenderId: "1025431129665",
+    appId: "1:1025431129665:web:940b62e315fbd52c6b00c0",
+    measurementId: "G-NXVH2ZT00L"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.firestore();
+
+// Stripe
+const stripe = Stripe("pk_test_TU_PUBLIC_KEY_AQUI"); // ⚠️ REEMPLAZA ESTO
+
+function updateAuthUI(user) {
+    const userProfile = document.getElementById('user-profile');
+    const authForms = document.getElementById('auth-forms');
+
+    if (user) {
+        document.getElementById('user-name').textContent = user.displayName || user.email.split('@')[0];
+        authForms.style.display = 'none';
+        userProfile.style.display = 'block';
+    } else {
+        authForms.style.display = 'block';
+        userProfile.style.display = 'none';
+        document.getElementById('login-form').style.display = 'block';
+        document.getElementById('signup-form').style.display = 'none';
+    }
+}
+
+auth.onAuthStateChanged((user) => {
+    updateAuthUI(user);
+});
+
+document.addEventListener('DOMContentLoaded', () => {
+    document.getElementById('toggle-signup').addEventListener('click', () => {
+        document.getElementById('login-form').style.display = 'none';
+        document.getElementById('signup-form').style.display = 'block';
+    });
+
+    document.getElementById('toggle-login').addEventListener('click', () => {
+        document.getElementById('signup-form').style.display = 'none';
+        document.getElementById('login-form').style.display = 'block';
+    });
+});
+
+document.getElementById('signup-btn').addEventListener('click', async () => {
+    const email = document.getElementById('signup-email').value;
+    const password = document.getElementById('signup-password').value;
+    const name = document.getElementById('signup-name').value;
+
+    if (!email || !password || !name) {
+        alert("❌ Por favor completa todos los campos.");
+        return;
+    }
+
+    try {
+        const userCredential = await auth.createUserWithEmailAndPassword(email, password);
+        await userCredential.user.updateProfile({
+            displayName: name
+        });
+        showNotification("✅ ¡Cuenta creada exitosamente!");
+        document.getElementById('user-modal').style.display = 'none';
+    } catch (error) {
+        let msg = "Error al crear cuenta.";
+        if (error.code === "auth/email-already-in-use") {
+            msg = "Este correo ya está registrado.";
+        } else if (error.code === "auth/weak-password") {
+            msg = "La contraseña debe tener al menos 6 caracteres.";
+        }
+        alert("❌ " + msg);
+    }
+});
+
+document.getElementById('login-btn').addEventListener('click', async () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    if (!email || !password) {
+        alert("❌ Por favor completa todos los campos.");
+        return;
+    }
+
+    try {
+        await auth.signInWithEmailAndPassword(email, password);
+        showNotification("✅ ¡Bienvenido de nuevo!");
+        document.getElementById('user-modal').style.display = 'none';
+    } catch (error) {
+        let msg = "Error al iniciar sesión.";
+        if (error.code === "auth/wrong-password") {
+            msg = "Contraseña incorrecta.";
+        } else if (error.code === "auth/user-not-found") {
+            msg = "Usuario no encontrado.";
+        }
+        alert("❌ " + msg);
+    }
+});
+
+document.getElementById('google-login').addEventListener('click', async () => {
+    const provider = new firebase.auth.GoogleAuthProvider();
+    try {
+        await auth.signInWithPopup(provider);
+        showNotification("✅ ¡Iniciaste sesión con Google!");
+        document.getElementById('user-modal').style.display = 'none';
+    } catch (error) {
+        alert("❌ Error al iniciar sesión con Google: " + error.message);
+    }
+});
+
+document.getElementById('logout-btn').addEventListener('click', async () => {
+    try {
+        await auth.signOut();
+        showNotification("👋 Sesión cerrada correctamente");
+    } catch (error) {
+        alert("❌ Error al cerrar sesión: " + error.message);
+    }
+});
+
+// ==================================================
+// FUNCIONALIDADES DE LA TIENDA
+// ==================================================
+
 function renderProducts() {
     const container = document.getElementById('products-container');
     container.innerHTML = products.map(product => `
@@ -84,7 +216,6 @@ function renderProducts() {
     `).join('');
 }
 
-// Render Offers
 function renderOffers() {
     const container = document.getElementById('offers-container');
     container.innerHTML = offers.map(offer => `
@@ -106,7 +237,6 @@ function renderOffers() {
     `).join('');
 }
 
-// Render Cart
 function renderCart() {
     const cartItemsContainer = document.getElementById('cart-items');
     const emptyCartMsg = document.getElementById('empty-cart');
@@ -160,13 +290,11 @@ function renderCart() {
     document.getElementById('checkout-btn').disabled = false;
 }
 
-// Save Cart
 function saveCart() {
     localStorage.setItem('cart', JSON.stringify(cart));
     renderCart();
 }
 
-// Add to Cart
 function addToCart(productId, isOffer = false) {
     let product;
     if (isOffer) {
@@ -187,7 +315,6 @@ function addToCart(productId, isOffer = false) {
     showNotification("✅ Producto agregado al carrito");
 }
 
-// Update Quantity
 function updateQuantity(productId, change) {
     const item = cart.find(item => item.id === productId);
     if (item) {
@@ -200,13 +327,11 @@ function updateQuantity(productId, change) {
     }
 }
 
-// Remove from Cart
 function removeFromCart(productId) {
     cart = cart.filter(item => item.id !== productId);
     saveCart();
 }
 
-// Show Notification
 function showNotification(message) {
     const notification = document.createElement('div');
     notification.className = 'notification';
@@ -217,38 +342,34 @@ function showNotification(message) {
     }, 2500);
 }
 
-// Initialize
 document.addEventListener('DOMContentLoaded', () => {
     renderProducts();
     renderOffers();
     renderCart();
 
-    // Event Listeners
-
-    // Products Container
     document.getElementById('products-container').addEventListener('click', e => {
         if (e.target.classList.contains('add-to-cart')) {
             const productId = parseInt(e.target.dataset.id);
-            addToCart(productId, false);
+            const isOffer = e.target.dataset.isOffer === "true";
+            addToCart(productId, isOffer);
         }
     });
 
-    // Offers Container
     document.getElementById('offers-container').addEventListener('click', e => {
         if (e.target.classList.contains('add-to-cart')) {
             const productId = parseInt(e.target.dataset.id);
-            addToCart(productId, true);
+            const isOffer = e.target.dataset.isOffer === "true";
+            addToCart(productId, isOffer);
         }
     });
 
-    // Cart Modal
     const cartIcon = document.getElementById('cart-icon');
     const cartModal = document.getElementById('cart-modal');
     const closeCartBtn = document.getElementById('close-cart');
 
     cartIcon.addEventListener('click', () => {
         cartModal.style.display = 'block';
-        renderCart(); // Refresh cart when opened
+        renderCart();
     });
 
     closeCartBtn.addEventListener('click', () => {
@@ -261,7 +382,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Cart Items Events
     document.getElementById('cart-items').addEventListener('click', e => {
         const id = parseInt(e.target.dataset.id);
         if (e.target.classList.contains('increase')) {
@@ -273,7 +393,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Payment Methods Selection
     document.querySelectorAll('input[name="payment"]').forEach(radio => {
         radio.addEventListener('change', () => {
             document.querySelectorAll('.payment-option').forEach(opt => {
@@ -283,9 +402,8 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
 
-    // Checkout Button
-    document.getElementById('checkout-btn').addEventListener('click', () => {
-        // Validate form
+    // ✅ CHECKOUT CON STRIPE
+    document.getElementById('checkout-btn').addEventListener('click', async () => {
         const name = document.getElementById('name').value.trim();
         const email = document.getElementById('email').value.trim();
         const address = document.getElementById('address').value.trim();
@@ -297,25 +415,102 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Simulate purchase
-        alert(`🎉 ¡Compra exitosa!\n\nCliente: ${name}\nEmail: ${email}\nTotal: $${document.getElementById('total-price').textContent}\nMétodo: ${payment.value}`);
-        
-        // Clear cart
-        cart = [];
-        saveCart();
-        cartModal.style.display = 'none';
+        if (payment.value !== 'stripe') {
+            alert('Por ahora solo aceptamos pagos con Stripe.');
+            return;
+        }
 
-        // Reset form
-        document.getElementById('name').value = '';
-        document.getElementById('email').value = '';
-        document.getElementById('address').value = '';
-        document.getElementById('phone').value = '';
-        document.querySelectorAll('input[name="payment"]').forEach(r => r.checked = false);
-        document.querySelectorAll('.payment-option').forEach(opt => opt.classList.remove('active'));
+        const user = auth.currentUser;
+
+        const orderData = {
+            userId: user ? user.uid : 'guest',
+            userName: name,
+            userEmail: email,
+            userAddress: address,
+            userPhone: phone,
+            paymentMethod: payment.value,
+            total: parseFloat(document.getElementById('total-price').textContent),
+            items: cart.map(item => {
+                let product = products.find(p => p.id === item.id) || offers.find(o => o.id === item.id);
+                return {
+                    productId: item.id,
+                    title: product.title,
+                    price: product.price,
+                    quantity: item.quantity
+                };
+            }),
+            status: 'pending',
+            createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        };
+
+        try {
+            // Guardar orden en Firestore primero
+            const docRef = await db.collection('orders').add(orderData);
+            console.log("Orden guardada con ID: ", docRef.id);
+
+            // Crear sesión de checkout en Stripe
+            const response = await fetch('/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    items: orderData.items,
+                    customerName: name,
+                    customerEmail: email,
+                    customerAddress: address,
+                    customerPhone: phone
+                })
+            });
+
+            const session = await response.json();
+
+            if (response.ok) {
+                // Redirigir a Stripe Checkout
+                const result = await stripe.redirectToCheckout({
+                    sessionId: session.sessionId
+                });
+
+                if (result.error) {
+                    alert(result.error.message);
+                }
+            } else {
+                alert(session.error || 'Error al crear sesión de pago.');
+            }
+
+        } catch (error) {
+            console.error("Error en checkout: ", error);
+            alert("❌ Hubo un error al procesar tu pago. Inténtalo de nuevo.");
+        }
     });
 
-    // Mobile Menu
     document.getElementById('mobile-menu').addEventListener('click', () => {
         document.querySelector('.nav-list').classList.toggle('active');
     });
+
+    document.getElementById('user-btn').addEventListener('click', () => {
+        document.getElementById('user-modal').style.display = 'block';
+    });
+
+    document.getElementById('close-user').addEventListener('click', () => {
+        document.getElementById('user-modal').style.display = 'none';
+    });
+
+    window.addEventListener('click', e => {
+        if (e.target === document.getElementById('user-modal')) {
+            document.getElementById('user-modal').style.display = 'none';
+        }
+    });
+
+    // Manejar redirección después de pago
+    const urlParams = new URLSearchParams(window.location.search);
+    const paymentStatus = urlParams.get('payment');
+
+    if (paymentStatus === 'success') {
+        showNotification("🎉 ¡Pago completado! Gracias por tu compra.");
+        // Limpiar carrito y resetear UI
+        cart = [];
+        saveCart();
+        // Podrías redirigir a una página de éxito
+    } else if (paymentStatus === 'cancelled') {
+        showNotification("⚠️ Pago cancelado. Puedes intentarlo de nuevo.");
+    }
 });
